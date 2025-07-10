@@ -194,13 +194,9 @@ class StOperatorPool(OperatorPool):
             os.path.dirname(__file__), '../../configs/data_juicer_recipes'
         ))
         self.recipe_manager = RecipeManager(recipes_path, all_ops)
-        if 'reuse_recipe_dialog_open' not in st.session_state:
-            st.session_state.reuse_recipe_dialog_open = False
             
         self.current_page = st.session_state.current_page
         self.search_example = "e.g., filter|language"
-        if 'edit_pool_dialog_open' not in st.session_state:
-            st.session_state.edit_pool_dialog_open = False
 
     def filter_operators(self, search_term, op_list):
         if not search_term:
@@ -219,7 +215,6 @@ class StOperatorPool(OperatorPool):
         for key in keys_to_delete:
             if key in st.session_state:
                 del st.session_state[key]
-        st.session_state.edit_pool_dialog_open = False
 
     @st.dialog("Edit Operator Pool", width="large")
     def render_edit_op_pool_dialog(self):
@@ -376,7 +371,6 @@ class StOperatorPool(OperatorPool):
         if not self.recipe_manager.recipes:
              st.error(f"No recipes found in the directory: {self.recipe_manager.recipes_dir}. Please check the path.")
              if st.button("Close"):
-                st.session_state.reuse_recipe_dialog_open = False
                 st.rerun()
              return
         elif not filtered_recipes:
@@ -428,11 +422,11 @@ class StOperatorPool(OperatorPool):
                             self.add_op(op_name, op_config_to_add)
                             for arg_name, arg_details in op_config_to_add.get('args', {}).items():
                                 if arg_details.get("v") is not None:
-                                    self.pool[op_name].args[arg_name].set_v(arg_details["v"])
+                                    self.act(op_name=op_name, action_type="set_arg",
+                                                  arg_name=arg_name, v=arg_details["v"])
                         
                         # 3. Sync state, close dialog, and refresh the app
                         self.st_sync()
-                        st.session_state.reuse_recipe_dialog_open = False
                         st.session_state.current_page = 1
                         st.rerun()
 
@@ -455,10 +449,10 @@ class StOperatorPool(OperatorPool):
 
             # Button to open the new dialog
             if st.button("⚙️ Edit Operator Pool", use_container_width=True):
-                st.session_state.edit_pool_dialog_open = True
+                self.render_edit_op_pool_dialog()
                 
             if st.button("🍽️ Reuse Example Recipe", use_container_width=True):
-                st.session_state.reuse_recipe_dialog_open = True
+                self.render_reuse_example_recipe_dialog()
 
             # Show enabled only option
             st.checkbox(
@@ -497,12 +491,6 @@ class StOperatorPool(OperatorPool):
 
             st.write(f"Page {self.current_page} of {total_pages}")
             
-        if st.session_state.get("edit_pool_dialog_open", False):
-            self.render_edit_op_pool_dialog()
-        
-        if st.session_state.get("reuse_recipe_dialog_open", False):
-            self.render_reuse_example_recipe_dialog()
-    
     def add_op(self, op_name, arg_state):
         state_copy = copy.deepcopy(arg_state)
         state_copy.update(name=op_name)
