@@ -211,10 +211,14 @@ class StOperatorPool(OperatorPool):
 
     def _cleanup_edit_dialog_state(self):
         """Helper function to clean up session state after dialog closes."""
-        keys_to_delete = ['edited_op_pool_names', 'edit_op_search_term', 'edit_op_current_page']
+        keys_to_delete = ['edited_op_pool_names', 'edit_op_search_term']
         for key in keys_to_delete:
             if key in st.session_state:
                 del st.session_state[key]
+    
+    def add_ops_and_clear_callback(self, ops_to_add):
+        st.session_state.edited_op_pool_names.update(ops_to_add)
+        st.session_state.edit_op_search_term = ""
 
     @st.dialog("Edit Operator Pool", width="large")
     def render_edit_op_pool_dialog(self):
@@ -257,10 +261,13 @@ class StOperatorPool(OperatorPool):
                     with row_col1:
                         st.markdown(f"**{op_name}**")
                     with row_col2:
-                        if st.button("➖", key=f"remove_op_{op_name}", help=f"Remove {op_name}"):
-                            st.session_state.edited_op_pool_names.remove(op_name)
-                            st.rerun()
-
+                        st.button(
+                            "➖", 
+                            key=f"remove_op_{op_name}", 
+                            help=f"Remove {op_name}",
+                            on_click=st.session_state.edited_op_pool_names.remove,
+                            args=(op_name,)
+                            )
         # ==================================================================
         # RIGHT COLUMN: Available Operators
         # ==================================================================
@@ -281,22 +288,18 @@ class StOperatorPool(OperatorPool):
 
             with btn_col:
                 # Disable button if the filtered list is empty
-                if st.button("Add All Filtered", key="add_all_ops", disabled=not filtered_available_ops, use_container_width=True):
-                    st.session_state.edited_op_pool_names.update(filtered_available_ops)
-                    # Optional: Clear search term for better UX
-                    if st.session_state.edit_op_search_term:
-                        st.session_state.edit_op_search_term = ""
-                    st.rerun()
+                st.button(
+                    "Add All Searched", 
+                    key="add_all_ops", 
+                    disabled=not filtered_available_ops, 
+                    use_container_width=True,
+                    on_click=self.add_ops_and_clear_callback,
+                    args=(filtered_available_ops,)
+                    )
 
-            items_per_page = 5
-            current_page = st.session_state.edit_op_current_page
-            total_pages = math.ceil(len(filtered_available_ops) / items_per_page) if filtered_available_ops else 1
-            
-            start_idx = (current_page - 1) * items_per_page
-            end_idx = start_idx + items_per_page
-            ops_to_display = filtered_available_ops[start_idx:end_idx]
+            ops_to_display = filtered_available_ops
 
-            with st.container(height=300): # Adjusted height
+            with st.container(height=350): # Adjusted height
                 if not ops_to_display:
                     st.caption("No matching operators found.")
                 for op_name in ops_to_display:
@@ -304,20 +307,7 @@ class StOperatorPool(OperatorPool):
                     with row_col1:
                         st.write(op_name)
                     with row_col2:
-                        if st.button("➕", key=f"add_op_{op_name}", help=f"Add {op_name}"):
-                            st.session_state.edited_op_pool_names.add(op_name)
-                            if search_term:
-                                st.session_state.edit_op_search_term = ""
-                            st.rerun()
-            
-            p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
-            if p_col1.button("←", disabled=current_page <= 1, use_container_width=True, key="prev_avail_op"):
-                st.session_state.edit_op_current_page -= 1
-                st.rerun()
-            p_col2.markdown(f"<div style='text-align: center; margin-top: 5px;'>Page {current_page} of {total_pages}</div>", unsafe_allow_html=True)
-            if p_col3.button("→", disabled=current_page >= total_pages, use_container_width=True, key="next_avail_op"):
-                st.session_state.edit_op_current_page += 1
-                st.rerun()
+                        st.button("➕", key=f"add_op_{op_name}", help=f"Add {op_name}", on_click=self.add_ops_and_clear_callback, args=([op_name],))
 
         # ==================================================================
         # DIALOG ACTIONS: Apply or Cancel
